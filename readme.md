@@ -1,0 +1,1 @@
+The aim of this project is to download the Capitalbike zip files (url = "https://s3.amazonaws.com/capitalbikeshare-data/"), unpack them and import them into a Postgresql database. Downloading, importing the data and the Postgresql database each run in Docker containers and are orchestrated by Docker Compose.

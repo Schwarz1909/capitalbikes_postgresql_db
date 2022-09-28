@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  extract:
+    image: python:3.9-slim
+    container_name: extract
+    working_dir: /home/scripts
+    command: bash -c "pip install -r /home/requirements/requirements_extract.txt && python extract.py"
+    #command: bash -c "pip install -r /home/requirements/requirements_extract.txt && tail -f /dev/null"
+    tty: true
+    networks:
+      - mynetwork
+    volumes:
+      - ./scripts:/home/scripts
+      - ./requirements:/home/requirements
+      - ./csv:/home/csv    
+      - ./zips:/home/zips
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+          pids: 1
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgresdb:/var/lib/postgresql/data
+      - ./sql/create_tables.sql/:/docker-entrypoint-initdb.d/create_tables.sql
+      - ./sql/fill_tables.sql/:/docker-entrypoint-initdb.d/fill_tables.sql
+      - ./csv:/home/csv
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - mynetwork
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - 5432:5432
+
+  load:
+    image: python:3.9-slim
+    container_name: load
+    volumes:
+      - ./logs:/home/logs
+      - ./scripts:/home/scripts
+      - ./requirements:/home/requirements 
+      - ./csv:/home/csv
+    working_dir: /home/scripts
+    command: bash -c "pip install -r /home/requirements/requirements_load.txt && python load.py"
+    #command: bash -c "pip install -r /home/requirements/requirements_load.txt && tail -f /dev/null"
+    tty: true
+    networks:
+      - mynetwork
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+          pids: 1
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+   
+volumes:
+  postgresdb:
+
+networks:
+  mynetwork:
